@@ -1,0 +1,35 @@
+{
+  "name": "@aionis/create",
+  "version": "0.2.4",
+  "description": "One-command installer for Aionis Runtime and agent integration packages.",
+  "license": "Apache-2.0",
+  "homepage": "https://docs.aionis.work/get-started/install",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ostinatocc/aionis-create.git"
+  },
+  "type": "module",
+  "bin": {
+    "create-aionis": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "tsx --test test/*.test.ts",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.22.4",
+    "typescript": "^5.6.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
