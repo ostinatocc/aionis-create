@@ -17,6 +17,7 @@ export type CreateAionisOptions = {
   quickstart: AionisQuickstart;
   skipInstall: boolean;
   skipQuickstart: boolean;
+  withAifs: boolean;
   withClaudeCode: boolean;
   claudeCodeDir: string | null;
   claudeCodeBaseUrl: string;
@@ -42,6 +43,7 @@ Options:
   --provider <name>         Embedding provider. Defaults to EMBEDDING_PROVIDER, a detected key, or none.
   --api-key <key>           Provider API key. Prefer env vars for shell history safety.
   --quickstart <name>       first-value, sdk, http, multi-agent, or none. Defaults to first-value.
+  --with-aifs               Install @aionis/aifs and print file-surface setup commands.
   --with-claude-code        Run Claude Code onboarding after Runtime install.
   --claude-code-dir <path>  Directory used as onboarding cwd. Defaults to current directory.
   --claude-code-base-url <url>
@@ -119,6 +121,7 @@ export function parseCreateAionisArgs(argv: string[], env: NodeJS.ProcessEnv = p
   let quickstart: AionisQuickstart = "first-value";
   let skipInstall = false;
   let skipQuickstart = false;
+  let withAifs = false;
   let withClaudeCode = false;
   let claudeCodeDir: string | null = null;
   let claudeCodeBaseUrl = env.AIONIS_CLAUDE_CODE_BASE_URL?.trim() || DEFAULT_CLAUDE_CODE_BASE_URL;
@@ -163,6 +166,10 @@ export function parseCreateAionisArgs(argv: string[], env: NodeJS.ProcessEnv = p
     if (arg === "--quickstart") {
       quickstart = parseQuickstart(readFlagValue(argv, i, arg));
       i += 1;
+      continue;
+    }
+    if (arg === "--with-aifs") {
+      withAifs = true;
       continue;
     }
     if (arg === "--with-claude-code") {
@@ -216,6 +223,7 @@ export function parseCreateAionisArgs(argv: string[], env: NodeJS.ProcessEnv = p
     quickstart,
     skipInstall,
     skipQuickstart,
+    withAifs,
     withClaudeCode,
     claudeCodeDir,
     claudeCodeBaseUrl,
@@ -337,6 +345,11 @@ export function createInstallPlan(options: CreateAionisOptions): string[] {
     `clone ${options.repo} -> ${options.dir}`,
     options.skipInstall ? "skip npm install" : "npm install",
     options.skipInstall ? "skip Runtime build" : "npm run -s build",
+    options.withAifs
+      ? options.skipInstall
+        ? "skip @aionis/aifs install"
+        : "npm install --save-dev @aionis/aifs@latest"
+      : "skip AIFS file surface",
     options.skipQuickstart || !quickstart ? "skip quickstart" : `npm run -s ${quickstart}`,
     options.withClaudeCode
       ? `install Claude Code hooks in ${options.claudeCodeDir ?? process.cwd()} -> ${options.claudeCodeBaseUrl}`
@@ -370,9 +383,19 @@ export function createCompletionMessage(input: {
   providerKey: string;
   apiKey: string | null;
   quickstartScript: string | null;
+  withAifs?: boolean;
   quickstartRequiresEmbeddingKey?: boolean;
   embeddingProvider?: string;
 }): string {
+  const aifsLines = input.withAifs
+    ? [
+      "AIFS package: @aionis/aifs",
+      "AIFS file surface from an agent project:",
+      "  npx @aionis/aifs@latest init --base-url http://127.0.0.1:3001 --scope my-project",
+      "  npx @aionis/aifs@latest doctor --base-url http://127.0.0.1:3001 --scope my-project",
+      "  npx @aionis/aifs@latest refresh --base-url http://127.0.0.1:3001 --scope my-project",
+    ]
+    : ["AIFS package: @aionis/aifs"];
   if (!input.apiKey) {
     const quickstartNeedsKey = input.quickstartRequiresEmbeddingKey ?? true;
     const noKeyRuntimeReady = input.embeddingProvider === "none";
@@ -398,6 +421,7 @@ export function createCompletionMessage(input: {
       "SDK package: @aionis/sdk",
       "MCP package: @aionis/mcp",
       "Claude Code hooks package: @aionis/claude-code",
+      ...aifsLines,
     ];
     if (input.quickstartScript && quickstartNeedsKey) {
       lines.push(
@@ -417,6 +441,7 @@ export function createCompletionMessage(input: {
     "SDK package: @aionis/sdk",
     "MCP package: @aionis/mcp",
     "Claude Code hooks package: @aionis/claude-code",
+    ...aifsLines,
   ].join(os.EOL)}${os.EOL}`;
 }
 
@@ -456,6 +481,9 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   if (!options.skipInstall) {
     run("npm", ["install"], targetDir);
     run("npm", ["run", "-s", "build"], targetDir);
+    if (options.withAifs) {
+      run("npm", ["install", "--save-dev", "@aionis/aifs@latest"], targetDir);
+    }
   }
 
   const quickstart = quickstartScriptName(options.quickstart);
@@ -468,6 +496,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
         apiKey,
         embeddingProvider: options.provider,
         quickstartScript: quickstart,
+        withAifs: options.withAifs,
         quickstartRequiresEmbeddingKey: quickstartNeedsKey,
       }));
       return;
@@ -491,6 +520,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     apiKey,
     embeddingProvider: options.provider,
     quickstartScript: options.skipQuickstart ? null : quickstart,
+    withAifs: options.withAifs,
     quickstartRequiresEmbeddingKey: quickstartRequiresEmbeddingKey(options.quickstart),
   }));
 }

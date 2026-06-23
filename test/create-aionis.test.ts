@@ -25,6 +25,7 @@ test("@aionis/create parses defaults for the one-command installer", () => {
   assert.equal(options.quickstart, "first-value");
   assert.equal(options.skipInstall, false);
   assert.equal(options.skipQuickstart, false);
+  assert.equal(options.withAifs, false);
   assert.equal(options.withClaudeCode, false);
   assert.equal(options.claudeCodeDir, null);
   assert.equal(options.claudeCodeBaseUrl, "http://127.0.0.1:3101");
@@ -58,6 +59,7 @@ test("@aionis/create parses explicit Runtime, SDK, and quickstart options", () =
     "sk-test",
     "--quickstart",
     "http",
+    "--with-aifs",
     "--skip-install",
   ]);
   assert.equal(options.dir, "my-aionis");
@@ -66,6 +68,7 @@ test("@aionis/create parses explicit Runtime, SDK, and quickstart options", () =
   assert.equal(options.provider, "openai");
   assert.equal(options.apiKey, "sk-test");
   assert.equal(options.quickstart, "http");
+  assert.equal(options.withAifs, true);
   assert.equal(options.skipInstall, true);
 });
 
@@ -213,6 +216,7 @@ test("@aionis/create install plan includes Runtime install, Runtime build, and s
     "clone https://github.com/ostinatocc/Aionis.git -> Aionis",
     "npm install",
     "npm run -s build",
+    "skip AIFS file surface",
     "npm run -s runtime:quickstart:multi-agent",
     `skip Claude Code hooks`,
   ]);
@@ -225,7 +229,20 @@ test("@aionis/create default install plan runs the no-key first-value demo", () 
     "clone https://github.com/ostinatocc/Aionis.git -> Aionis",
     "npm install",
     "npm run -s build",
+    "skip AIFS file surface",
     "npm run -s runtime:demo:first-value",
+    `skip Claude Code hooks`,
+  ]);
+});
+
+test("@aionis/create install plan can include AIFS", () => {
+  const plan = createInstallPlan(parseCreateAionisArgs(["--with-aifs", "--skip-quickstart"]));
+  assert.deepEqual(plan, [
+    "clone https://github.com/ostinatocc/Aionis.git -> Aionis",
+    "npm install",
+    "npm run -s build",
+    "npm install --save-dev @aionis/aifs@latest",
+    "skip quickstart",
     `skip Claude Code hooks`,
   ]);
 });
@@ -279,6 +296,7 @@ test("@aionis/create completion message blocks misleading ready state without an
   assert.match(message, /Start Runtime after the key is set/);
   assert.match(message, /Run quickstart after the key is set: npm run -s runtime:quickstart:sdk/);
   assert.doesNotMatch(message, /Aionis is ready/);
+  assert.match(message, /AIFS package: @aionis\/aifs/);
 });
 
 test("@aionis/create completion message allows first-value without an embedding key", () => {
@@ -288,12 +306,15 @@ test("@aionis/create completion message allows first-value without an embedding 
     apiKey: null,
     embeddingProvider: "none",
     quickstartScript: "runtime:demo:first-value",
+    withAifs: true,
     quickstartRequiresEmbeddingKey: false,
   });
 
   assert.match(message, /Runtime can start now in no-key mode/);
   assert.match(message, /Start Runtime: cd \/tmp\/Aionis && npm run -s lite:start/);
   assert.match(message, /Enable semantic recall later/);
+  assert.match(message, /AIFS file surface from an agent project/);
+  assert.match(message, /npx @aionis\/aifs@latest doctor/);
   assert.doesNotMatch(message, /Run quickstart after the key is set: npm run -s runtime:demo:first-value/);
 });
 
