@@ -293,7 +293,7 @@ test("@aionis/create plans and builds Claude Code lifecycle hook command", () =>
     "@aionis/claude-code@latest",
     "--",
     "aionis-claude-code",
-    "onboard",
+    "install",
     "--base-url",
     "http://127.0.0.1:3101",
     "--scope-from",

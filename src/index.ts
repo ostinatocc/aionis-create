@@ -394,7 +394,7 @@ export function createClaudeCodeInstallCommand(options: CreateAionisOptions, cwd
     "@aionis/claude-code@latest",
     "--",
     "aionis-claude-code",
-    "onboard",
+    "install",
     "--base-url",
     options.claudeCodeBaseUrl,
     "--scope-from",
