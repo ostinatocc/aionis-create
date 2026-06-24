@@ -388,8 +388,12 @@ export function createClaudeCodeInstallCommand(options: CreateAionisOptions, cwd
 } {
   const targetCwd = path.resolve(cwd, options.claudeCodeDir ?? ".");
   const args = [
-    "-y",
+    "exec",
+    "--yes",
+    "--package",
     "@aionis/claude-code@latest",
+    "--",
+    "aionis-claude-code",
     "onboard",
     "--base-url",
     options.claudeCodeBaseUrl,
@@ -399,7 +403,7 @@ export function createClaudeCodeInstallCommand(options: CreateAionisOptions, cwd
     options.claudeCodeMcpName,
   ];
   if (options.claudeCodeSkipMcp) args.push("--skip-mcp");
-  return { command: "npx", args, cwd: targetCwd };
+  return { command: "npm", args, cwd: targetCwd };
 }
 
 export function createCompletionMessage(input: {

@@ -285,10 +285,14 @@ test("@aionis/create plans and builds Claude Code lifecycle hook command", () =>
   assert.equal(plan.at(-1), `install Claude Code hooks in agent-project -> http://127.0.0.1:3101`);
 
   const command = createClaudeCodeInstallCommand(options, "/tmp/workspace");
-  assert.equal(command.command, "npx");
+  assert.equal(command.command, "npm");
   assert.deepEqual(command.args, [
-    "-y",
+    "exec",
+    "--yes",
+    "--package",
     "@aionis/claude-code@latest",
+    "--",
+    "aionis-claude-code",
     "onboard",
     "--base-url",
     "http://127.0.0.1:3101",
