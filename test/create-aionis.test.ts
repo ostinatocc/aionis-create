@@ -12,6 +12,7 @@ import {
   isCliEntrypoint,
   parseCreateAionisArgs,
   providerEnvKey,
+  quickstartRunEnv,
   quickstartRequiresEmbeddingKey,
   quickstartScriptName,
   writeRuntimeEnv,
@@ -121,6 +122,7 @@ test("@aionis/create writes no-key Runtime env with embedding provider none", ()
 
   const result = writeRuntimeEnv(dir, parseCreateAionisArgs([], {}));
   const env = fs.readFileSync(path.join(dir, ".env"), "utf8");
+  const mode = fs.statSync(path.join(dir, ".env")).mode & 0o777;
 
   assert.equal(result.embeddingProvider, "none");
   assert.equal(result.providerKey, "");
@@ -128,6 +130,7 @@ test("@aionis/create writes no-key Runtime env with embedding provider none", ()
   assert.match(env, /EMBEDDING_PROVIDER="none"/);
   assert.doesNotMatch(env, /OPENAI_API_KEY=/);
   assert.doesNotMatch(env, /MINIMAX_API_KEY=/);
+  assert.equal(mode, 0o600);
 });
 
 test("@aionis/create writes OpenAI env when an OpenAI key is available", () => {
@@ -233,6 +236,23 @@ test("@aionis/create default install plan runs the no-key first-value demo", () 
     "npm run -s runtime:demo:first-value",
     `skip Claude Code hooks`,
   ]);
+});
+
+test("@aionis/create routes install-time first-value output to ignored local state", () => {
+  const targetDir = path.join(os.tmpdir(), "aionis-create-output");
+  const env = quickstartRunEnv(
+    parseCreateAionisArgs(["--provider", "none"], {}),
+    targetDir,
+    "",
+    null,
+    {},
+  );
+
+  assert.equal(env.EMBEDDING_PROVIDER, "none");
+  assert.equal(
+    env.AIONIS_FIRST_VALUE_DEMO_OUTPUT_PATH,
+    path.join(targetDir, ".aionis", "runs", "first-value-demo-result.json"),
+  );
 });
 
 test("@aionis/create install plan can include AIFS", () => {

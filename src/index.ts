@@ -336,7 +336,31 @@ export function writeRuntimeEnv(targetDir: string, options: CreateAionisOptions)
   }
   if (apiKey) source = upsertEnvLine(source, providerKey, apiKey);
   fs.writeFileSync(envPath, source.endsWith(os.EOL) ? source : `${source}${os.EOL}`);
+  fs.chmodSync(envPath, 0o600);
   return { providerKey, apiKey, embeddingProvider: options.provider };
+}
+
+export function quickstartRunEnv(
+  options: CreateAionisOptions,
+  targetDir: string,
+  providerKey: string,
+  apiKey: string | null,
+  baseEnv: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {
+    ...baseEnv,
+    EMBEDDING_PROVIDER: options.provider,
+  };
+  if (apiKey) env[providerKey] = apiKey;
+  if (options.quickstart === "first-value") {
+    env.AIONIS_FIRST_VALUE_DEMO_OUTPUT_PATH = path.join(
+      targetDir,
+      ".aionis",
+      "runs",
+      "first-value-demo-result.json",
+    );
+  }
+  return env;
 }
 
 export function createInstallPlan(options: CreateAionisOptions): string[] {
@@ -501,11 +525,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
       }));
       return;
     }
-    const quickstartEnv: NodeJS.ProcessEnv = {
-      ...process.env,
-      EMBEDDING_PROVIDER: options.provider,
-    };
-    if (apiKey) quickstartEnv[providerKey] = apiKey;
+    const quickstartEnv = quickstartRunEnv(options, targetDir, providerKey, apiKey);
     run("npm", ["run", "-s", quickstart], targetDir, quickstartEnv);
   }
 

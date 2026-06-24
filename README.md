@@ -20,6 +20,15 @@ Run:
 npx @aionis/create@latest
 ```
 
+For the guided product setup flow, use the top-level CLI instead:
+
+```bash
+npx aionis setup
+```
+
+That command prompts for provider and integration choices, collects optional
+API keys with hidden terminal input, then delegates the install to this package.
+
 The default run installs Aionis and starts the no-key first-value demo. It shows
 the Memory Firewall blocking failed and stale memory before you configure an
 embedding provider.
