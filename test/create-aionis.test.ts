@@ -261,7 +261,7 @@ test("@aionis/create install plan can include AIFS", () => {
     "clone https://github.com/ostinatocc/Aionis.git -> Aionis",
     "npm install",
     "npm run -s build",
-    "npm install --save-dev @aionis/aifs@latest",
+    "print AIFS file-surface setup commands",
     "skip quickstart",
     `skip Claude Code hooks`,
   ]);
@@ -331,6 +331,7 @@ test("@aionis/create completion message allows first-value without an embedding 
     embeddingProvider: "none",
     quickstartScript: "runtime:demo:first-value",
     withAifs: true,
+    runtimeBaseUrl: "http://127.0.0.1:3101",
     quickstartRequiresEmbeddingKey: false,
   });
 
@@ -338,7 +339,8 @@ test("@aionis/create completion message allows first-value without an embedding 
   assert.match(message, /Start Runtime: cd \/tmp\/Aionis && npm run -s lite:start/);
   assert.match(message, /Enable semantic recall later/);
   assert.match(message, /AIFS file surface from an agent project/);
-  assert.match(message, /npx @aionis\/aifs@latest doctor/);
+  assert.match(message, /npx @aionis\/aifs@latest doctor --base-url http:\/\/127\.0\.0\.1:3101 --scope my-project/);
+  assert.doesNotMatch(message, /--base-url http:\/\/127\.0\.0\.1:3001/);
   assert.doesNotMatch(message, /Run quickstart after the key is set: npm run -s runtime:demo:first-value/);
 });
 

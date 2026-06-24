@@ -59,13 +59,14 @@ cd .aionis-runtime
 npm run -s lite:start
 ```
 
-Install Runtime and include the AIFS file-surface package:
+Install Runtime and include AIFS file-surface setup commands in the completion output:
 
 ```bash
 npx @aionis/create@latest my-aionis --with-aifs
 ```
 
-Then run AIFS from the agent project that should contain `.aionis/`:
+`@aionis/create` does not add AIFS to the Runtime package.json. Run AIFS from the
+agent project that should contain `.aionis/`:
 
 ```bash
 npx @aionis/aifs@latest init --base-url http://127.0.0.1:3001 --scope my-project

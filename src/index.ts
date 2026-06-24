@@ -43,7 +43,7 @@ Options:
   --provider <name>         Embedding provider. Defaults to EMBEDDING_PROVIDER, a detected key, or none.
   --api-key <key>           Provider API key. Prefer env vars for shell history safety.
   --quickstart <name>       first-value, sdk, http, multi-agent, or none. Defaults to first-value.
-  --with-aifs               Install @aionis/aifs and print file-surface setup commands.
+  --with-aifs               Print @aionis/aifs file-surface setup commands.
   --with-claude-code        Run Claude Code onboarding after Runtime install.
   --claude-code-dir <path>  Directory used as onboarding cwd. Defaults to current directory.
   --claude-code-base-url <url>
@@ -370,9 +370,7 @@ export function createInstallPlan(options: CreateAionisOptions): string[] {
     options.skipInstall ? "skip npm install" : "npm install",
     options.skipInstall ? "skip Runtime build" : "npm run -s build",
     options.withAifs
-      ? options.skipInstall
-        ? "skip @aionis/aifs install"
-        : "npm install --save-dev @aionis/aifs@latest"
+      ? "print AIFS file-surface setup commands"
       : "skip AIFS file surface",
     options.skipQuickstart || !quickstart ? "skip quickstart" : `npm run -s ${quickstart}`,
     options.withClaudeCode
@@ -412,16 +410,18 @@ export function createCompletionMessage(input: {
   apiKey: string | null;
   quickstartScript: string | null;
   withAifs?: boolean;
+  runtimeBaseUrl?: string;
   quickstartRequiresEmbeddingKey?: boolean;
   embeddingProvider?: string;
 }): string {
+  const runtimeBaseUrl = input.runtimeBaseUrl ?? "http://127.0.0.1:3001";
   const aifsLines = input.withAifs
     ? [
       "AIFS package: @aionis/aifs",
       "AIFS file surface from an agent project:",
-      "  npx @aionis/aifs@latest init --base-url http://127.0.0.1:3001 --scope my-project",
-      "  npx @aionis/aifs@latest doctor --base-url http://127.0.0.1:3001 --scope my-project",
-      "  npx @aionis/aifs@latest refresh --base-url http://127.0.0.1:3001 --scope my-project",
+      `  npx @aionis/aifs@latest init --base-url ${runtimeBaseUrl} --scope my-project`,
+      `  npx @aionis/aifs@latest doctor --base-url ${runtimeBaseUrl} --scope my-project`,
+      `  npx @aionis/aifs@latest refresh --base-url ${runtimeBaseUrl} --scope my-project`,
     ]
     : ["AIFS package: @aionis/aifs"];
   if (!input.apiKey) {
@@ -509,9 +509,6 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   if (!options.skipInstall) {
     run("npm", ["install"], targetDir);
     run("npm", ["run", "-s", "build"], targetDir);
-    if (options.withAifs) {
-      run("npm", ["install", "--save-dev", "@aionis/aifs@latest"], targetDir);
-    }
   }
 
   const quickstart = quickstartScriptName(options.quickstart);
@@ -525,6 +522,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
         embeddingProvider: options.provider,
         quickstartScript: quickstart,
         withAifs: options.withAifs,
+        runtimeBaseUrl: options.withClaudeCode ? options.claudeCodeBaseUrl : undefined,
         quickstartRequiresEmbeddingKey: quickstartNeedsKey,
       }));
       return;
@@ -545,6 +543,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     embeddingProvider: options.provider,
     quickstartScript: options.skipQuickstart ? null : quickstart,
     withAifs: options.withAifs,
+    runtimeBaseUrl: options.withClaudeCode ? options.claudeCodeBaseUrl : undefined,
     quickstartRequiresEmbeddingKey: quickstartRequiresEmbeddingKey(options.quickstart),
   }));
 }
