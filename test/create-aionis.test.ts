@@ -27,6 +27,8 @@ test("@aionis/create parses defaults for the one-command installer", () => {
   assert.equal(options.skipInstall, false);
   assert.equal(options.skipQuickstart, false);
   assert.equal(options.withAifs, false);
+  assert.equal(options.withZvecAnn, false);
+  assert.equal(options.zvecPath, null);
   assert.equal(options.withClaudeCode, false);
   assert.equal(options.claudeCodeDir, null);
   assert.equal(options.claudeCodeBaseUrl, "http://127.0.0.1:3101");
@@ -61,6 +63,9 @@ test("@aionis/create parses explicit Runtime, SDK, and quickstart options", () =
     "--quickstart",
     "http",
     "--with-aifs",
+    "--with-zvec-ann",
+    "--zvec-path",
+    ".aionis/zvec-ann",
     "--skip-install",
   ]);
   assert.equal(options.dir, "my-aionis");
@@ -70,6 +75,8 @@ test("@aionis/create parses explicit Runtime, SDK, and quickstart options", () =
   assert.equal(options.apiKey, "sk-test");
   assert.equal(options.quickstart, "http");
   assert.equal(options.withAifs, true);
+  assert.equal(options.withZvecAnn, true);
+  assert.equal(options.zvecPath, ".aionis/zvec-ann");
   assert.equal(options.skipInstall, true);
 });
 
@@ -175,6 +182,27 @@ test("@aionis/create writes MiniMax env when explicitly selected with a key", ()
   assert.match(env, /MINIMAX_API_KEY="sk-minimax"/);
 });
 
+test("@aionis/create writes optional Zvec ANN env when requested", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aionis-create-env-zvec-"));
+  fs.writeFileSync(path.join(dir, ".env.example"), [
+    "EMBEDDING_PROVIDER=none",
+    "RECALL_ANN_PROVIDER=off",
+    "RECALL_ANN_REBUILD_ON_START=false",
+    "",
+  ].join(os.EOL));
+
+  writeRuntimeEnv(dir, parseCreateAionisArgs([
+    "--with-zvec-ann",
+    "--zvec-path",
+    ".aionis/zvec-ann",
+  ], {}));
+  const env = fs.readFileSync(path.join(dir, ".env"), "utf8");
+
+  assert.match(env, /RECALL_ANN_PROVIDER="zvec"/);
+  assert.match(env, /RECALL_ANN_REBUILD_ON_START="true"/);
+  assert.match(env, /RECALL_ZVEC_PATH="\.aionis\/zvec-ann"/);
+});
+
 test("@aionis/create aligns local Runtime port with Claude Code base URL", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aionis-create-env-claude-code-"));
   fs.writeFileSync(path.join(dir, ".env.example"), [
@@ -220,6 +248,7 @@ test("@aionis/create install plan includes Runtime install, Runtime build, and s
     "npm install",
     "npm run -s build",
     "skip AIFS file surface",
+    "skip Zvec ANN sidecar",
     "npm run -s runtime:quickstart:multi-agent",
     `skip Claude Code hooks`,
   ]);
@@ -233,6 +262,7 @@ test("@aionis/create default install plan runs the no-key first-value demo", () 
     "npm install",
     "npm run -s build",
     "skip AIFS file surface",
+    "skip Zvec ANN sidecar",
     "npm run -s runtime:demo:first-value",
     `skip Claude Code hooks`,
   ]);
@@ -262,6 +292,7 @@ test("@aionis/create install plan can include AIFS", () => {
     "npm install",
     "npm run -s build",
     "print AIFS file-surface setup commands",
+    "skip Zvec ANN sidecar",
     "skip quickstart",
     `skip Claude Code hooks`,
   ]);
@@ -356,6 +387,23 @@ test("@aionis/create completion message keeps selected recall quickstart gated i
 
   assert.match(message, /Runtime can start now in no-key mode/);
   assert.match(message, /Run selected quickstart after semantic recall is configured: npm run -s runtime:quickstart:sdk/);
+});
+
+test("@aionis/create completion message includes Zvec doctor when enabled", () => {
+  const message = createCompletionMessage({
+    targetDir: "/tmp/Aionis",
+    providerKey: "",
+    apiKey: null,
+    embeddingProvider: "none",
+    quickstartScript: null,
+    withZvecAnn: true,
+    zvecPath: ".aionis/zvec-ann",
+  });
+
+  assert.match(message, /Zvec ANN sidecar: enabled/);
+  assert.match(message, /SQLite remains the Runtime fact source/);
+  assert.match(message, /Zvec index path: \.aionis\/zvec-ann/);
+  assert.match(message, /Zvec doctor: cd \/tmp\/Aionis && npm run -s recall:ann:scale/);
 });
 
 test("@aionis/create completion message keeps the ready state when a key is configured", () => {

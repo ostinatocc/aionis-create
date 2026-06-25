@@ -18,6 +18,8 @@ export type CreateAionisOptions = {
   skipInstall: boolean;
   skipQuickstart: boolean;
   withAifs: boolean;
+  withZvecAnn: boolean;
+  zvecPath: string | null;
   withClaudeCode: boolean;
   claudeCodeDir: string | null;
   claudeCodeBaseUrl: string;
@@ -44,6 +46,8 @@ Options:
   --api-key <key>           Provider API key. Prefer env vars for shell history safety.
   --quickstart <name>       first-value, sdk, http, multi-agent, or none. Defaults to first-value.
   --with-aifs               Print @aionis/aifs file-surface setup commands.
+  --with-zvec-ann           Enable optional Zvec ANN candidate sidecar in Runtime .env.
+  --zvec-path <path>        Optional Zvec index path. Defaults to Runtime's SQLite-derived path.
   --with-claude-code        Run Claude Code onboarding after Runtime install.
   --claude-code-dir <path>  Directory used as onboarding cwd. Defaults to current directory.
   --claude-code-base-url <url>
@@ -122,6 +126,8 @@ export function parseCreateAionisArgs(argv: string[], env: NodeJS.ProcessEnv = p
   let skipInstall = false;
   let skipQuickstart = false;
   let withAifs = false;
+  let withZvecAnn = false;
+  let zvecPath: string | null = null;
   let withClaudeCode = false;
   let claudeCodeDir: string | null = null;
   let claudeCodeBaseUrl = env.AIONIS_CLAUDE_CODE_BASE_URL?.trim() || DEFAULT_CLAUDE_CODE_BASE_URL;
@@ -170,6 +176,16 @@ export function parseCreateAionisArgs(argv: string[], env: NodeJS.ProcessEnv = p
     }
     if (arg === "--with-aifs") {
       withAifs = true;
+      continue;
+    }
+    if (arg === "--with-zvec-ann") {
+      withZvecAnn = true;
+      continue;
+    }
+    if (arg === "--zvec-path") {
+      zvecPath = readFlagValue(argv, i, arg);
+      withZvecAnn = true;
+      i += 1;
       continue;
     }
     if (arg === "--with-claude-code") {
@@ -224,6 +240,8 @@ export function parseCreateAionisArgs(argv: string[], env: NodeJS.ProcessEnv = p
     skipInstall,
     skipQuickstart,
     withAifs,
+    withZvecAnn,
+    zvecPath,
     withClaudeCode,
     claudeCodeDir,
     claudeCodeBaseUrl,
@@ -334,6 +352,11 @@ export function writeRuntimeEnv(targetDir: string, options: CreateAionisOptions)
     const port = localPortFromUrl(options.claudeCodeBaseUrl);
     if (port) source = upsertEnvLine(source, "PORT", port);
   }
+  if (options.withZvecAnn) {
+    source = upsertEnvLine(source, "RECALL_ANN_PROVIDER", "zvec");
+    source = upsertEnvLine(source, "RECALL_ANN_REBUILD_ON_START", "true");
+    if (options.zvecPath?.trim()) source = upsertEnvLine(source, "RECALL_ZVEC_PATH", options.zvecPath.trim());
+  }
   if (apiKey) source = upsertEnvLine(source, providerKey, apiKey);
   fs.writeFileSync(envPath, source.endsWith(os.EOL) ? source : `${source}${os.EOL}`);
   fs.chmodSync(envPath, 0o600);
@@ -372,6 +395,9 @@ export function createInstallPlan(options: CreateAionisOptions): string[] {
     options.withAifs
       ? "print AIFS file-surface setup commands"
       : "skip AIFS file surface",
+    options.withZvecAnn
+      ? `enable Zvec ANN sidecar${options.zvecPath ? ` at ${options.zvecPath}` : ""}`
+      : "skip Zvec ANN sidecar",
     options.skipQuickstart || !quickstart ? "skip quickstart" : `npm run -s ${quickstart}`,
     options.withClaudeCode
       ? `install Claude Code hooks in ${options.claudeCodeDir ?? process.cwd()} -> ${options.claudeCodeBaseUrl}`
@@ -413,6 +439,8 @@ export function createCompletionMessage(input: {
   runtimeBaseUrl?: string;
   quickstartRequiresEmbeddingKey?: boolean;
   embeddingProvider?: string;
+  withZvecAnn?: boolean;
+  zvecPath?: string | null;
 }): string {
   const runtimeBaseUrl = input.runtimeBaseUrl ?? "http://127.0.0.1:3001";
   const aifsLines = input.withAifs
@@ -449,6 +477,7 @@ export function createCompletionMessage(input: {
       "SDK package: @aionis/sdk",
       "MCP package: @aionis/mcp",
       "Claude Code hooks package: @aionis/claude-code",
+      ...(input.withZvecAnn ? zvecCompletionLines(input.targetDir, input.zvecPath) : []),
       ...aifsLines,
     ];
     if (input.quickstartScript && quickstartNeedsKey) {
@@ -469,8 +498,40 @@ export function createCompletionMessage(input: {
     "SDK package: @aionis/sdk",
     "MCP package: @aionis/mcp",
     "Claude Code hooks package: @aionis/claude-code",
+    ...(input.withZvecAnn ? zvecCompletionLines(input.targetDir, input.zvecPath) : []),
     ...aifsLines,
   ].join(os.EOL)}${os.EOL}`;
+}
+
+function zvecCompletionLines(targetDir: string, zvecPath: string | null | undefined): string[] {
+  return [
+    "Zvec ANN sidecar: enabled for candidate generation; SQLite remains the Runtime fact source.",
+    zvecPath?.trim()
+      ? `Zvec index path: ${zvecPath.trim()}`
+      : "Zvec index path: Runtime default",
+    `Zvec doctor: cd ${targetDir} && npm run -s recall:ann:scale`,
+  ];
+}
+
+function ensureZvecAvailable(targetDir: string): void {
+  const result = spawnSync(
+    process.execPath,
+    ["--input-type=module", "-e", "await import('@zvec/zvec');"],
+    {
+      cwd: targetDir,
+      stdio: "pipe",
+      encoding: "utf8",
+    },
+  );
+  if (result.status !== 0) {
+    const detail = (result.stderr || result.stdout || "").trim();
+    throw new Error([
+      "Zvec ANN was requested, but @zvec/zvec is not importable from the installed Runtime.",
+      "Install support may be unavailable on this platform, or optional dependency installation failed.",
+      "Rerun without --with-zvec-ann, or install @zvec/zvec in the Runtime directory and retry.",
+      detail ? `Cause: ${detail}` : "",
+    ].filter(Boolean).join(os.EOL));
+  }
 }
 
 export function isCliEntrypoint(argvEntry: string | undefined, moduleUrl = import.meta.url): boolean {
@@ -509,6 +570,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   if (!options.skipInstall) {
     run("npm", ["install"], targetDir);
     run("npm", ["run", "-s", "build"], targetDir);
+    if (options.withZvecAnn) ensureZvecAvailable(targetDir);
   }
 
   const quickstart = quickstartScriptName(options.quickstart);
@@ -524,6 +586,8 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
         withAifs: options.withAifs,
         runtimeBaseUrl: options.withClaudeCode ? options.claudeCodeBaseUrl : undefined,
         quickstartRequiresEmbeddingKey: quickstartNeedsKey,
+        withZvecAnn: options.withZvecAnn,
+        zvecPath: options.zvecPath,
       }));
       return;
     }
@@ -545,6 +609,8 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     withAifs: options.withAifs,
     runtimeBaseUrl: options.withClaudeCode ? options.claudeCodeBaseUrl : undefined,
     quickstartRequiresEmbeddingKey: quickstartRequiresEmbeddingKey(options.quickstart),
+    withZvecAnn: options.withZvecAnn,
+    zvecPath: options.zvecPath,
   }));
 }
 
