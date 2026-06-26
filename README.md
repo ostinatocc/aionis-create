@@ -30,7 +30,7 @@ That command prompts for provider and integration choices, collects optional
 API keys with hidden terminal input, then delegates the install to this package.
 
 The default run installs Aionis and prepares the Runtime for Agent integration.
-It does not run a demo by default.
+It does not run optional verification flows by default.
 
 Install with OpenAI-compatible embeddings:
 
@@ -38,7 +38,7 @@ Install with OpenAI-compatible embeddings:
 OPENAI_API_KEY="your-key" npx @aionis/create@latest --provider openai
 ```
 
-Install without running any quickstart:
+Install Runtime only:
 
 ```bash
 npx @aionis/create@latest my-aionis --skip-quickstart

@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export type AionisQuickstart = "first-value" | "sdk" | "http" | "multi-agent" | "none";
+export type AionisQuickstart = "sdk" | "http" | "multi-agent" | "none";
 
 export type CreateAionisOptions = {
   dir: string;
@@ -44,7 +44,7 @@ Options:
   --branch <name>           Git branch or tag to clone.
   --provider <name>         Embedding provider. Defaults to EMBEDDING_PROVIDER, a detected key, or none.
   --api-key <key>           Provider API key. Prefer env vars for shell history safety.
-  --quickstart <name>       Advanced: first-value, sdk, http, multi-agent, or none. Defaults to none.
+  --quickstart <name>       Advanced: sdk, http, multi-agent, or none. Defaults to none.
   --with-aifs               Print @aionis/aifs file-surface setup commands.
   --with-zvec-ann           Enable optional Zvec ANN candidate sidecar in Runtime .env.
   --zvec-path <path>        Optional Zvec index path. Defaults to Runtime's SQLite-derived path.
@@ -58,10 +58,10 @@ Options:
                             Claude MCP server name. Defaults to aionis-local.
   --claude-code-skip-mcp    Install hooks without running claude mcp add.
   --skip-install            Clone and write env, but do not run npm install.
-  --skip-quickstart         Do not run the selected quickstart after install.
+  --skip-quickstart         Do not run the selected verification flow after install.
   -h, --help                Show help.
 
-Examples:
+Common commands:
   npx @aionis/create
   OPENAI_API_KEY=... npx @aionis/create my-aionis --provider openai
   npx @aionis/create .aionis-runtime --with-claude-code --claude-code-dir .
@@ -92,23 +92,21 @@ export function defaultEmbeddingProvider(env: NodeJS.ProcessEnv = process.env): 
 
 export function quickstartScriptName(quickstart: AionisQuickstart): string | null {
   if (quickstart === "none") return null;
-  if (quickstart === "first-value") return "runtime:demo:first-value";
   return `runtime:quickstart:${quickstart}`;
 }
 
 export function quickstartRequiresEmbeddingKey(quickstart: AionisQuickstart): boolean {
-  return quickstart !== "first-value" && quickstart !== "none";
+  return quickstart !== "none";
 }
 
 function parseQuickstart(value: string): AionisQuickstart {
   if (
-    value === "first-value"
-    || value === "sdk"
+    value === "sdk"
     || value === "http"
     || value === "multi-agent"
     || value === "none"
   ) return value;
-  throw new Error(`Unsupported quickstart "${value}". Use first-value, sdk, http, multi-agent, or none.`);
+  throw new Error(`Unsupported quickstart "${value}". Use sdk, http, multi-agent, or none.`);
 }
 
 function parseClaudeCodeScopeFrom(value: string): CreateAionisOptions["claudeCodeScopeFrom"] {
@@ -375,14 +373,6 @@ export function quickstartRunEnv(
     EMBEDDING_PROVIDER: options.provider,
   };
   if (apiKey) env[providerKey] = apiKey;
-  if (options.quickstart === "first-value") {
-    env.AIONIS_FIRST_VALUE_DEMO_OUTPUT_PATH = path.join(
-      targetDir,
-      ".aionis",
-      "runs",
-      "first-value-demo-result.json",
-    );
-  }
   return env;
 }
 
@@ -398,7 +388,7 @@ export function createInstallPlan(options: CreateAionisOptions): string[] {
     options.withZvecAnn
       ? `enable Zvec ANN sidecar${options.zvecPath ? ` at ${options.zvecPath}` : ""}`
       : "skip Zvec ANN sidecar",
-    options.skipQuickstart || !quickstart ? "skip quickstart" : `npm run -s ${quickstart}`,
+    options.skipQuickstart || !quickstart ? "skip verification flow" : `npm run -s ${quickstart}`,
     options.withClaudeCode
       ? `install Claude Code hooks in ${options.claudeCodeDir ?? process.cwd()} -> ${options.claudeCodeBaseUrl}`
       : "skip Claude Code hooks",
@@ -481,7 +471,7 @@ export function createCompletionMessage(input: {
         ? `Config file: ${path.join(input.targetDir, ".env")}`
         : `Set it in: ${path.join(input.targetDir, ".env")}`,
       ...(noKeyRuntimeReady ? [] : [
-        `Example: ${input.providerKey}="your-key"`,
+        `Set: ${input.providerKey}="your-key"`,
       ]),
       "SDK package: @aionis/sdk",
       "MCP package: @aionis/mcp",
@@ -492,8 +482,8 @@ export function createCompletionMessage(input: {
     if (input.quickstartScript && quickstartNeedsKey) {
       lines.push(
         noKeyRuntimeReady
-          ? `Selected quickstart was not run. Configure semantic recall first, then run: npm run -s ${input.quickstartScript}`
-          : `Selected quickstart was not run. Set the key first, then run: npm run -s ${input.quickstartScript}`,
+          ? `Selected verification flow was not run. Configure semantic recall first, then run: npm run -s ${input.quickstartScript}`
+          : `Selected verification flow was not run. Set the key first, then run: npm run -s ${input.quickstartScript}`,
       );
     }
     return `${lines.join(os.EOL)}${os.EOL}`;

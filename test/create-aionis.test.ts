@@ -109,12 +109,10 @@ test("@aionis/create exposes stable provider and quickstart mappings", () => {
   assert.equal(providerEnvKey("openai"), "OPENAI_API_KEY");
   assert.equal(providerEnvKey("none"), "");
   assert.equal(providerEnvKey("custom provider"), "CUSTOM_PROVIDER_API_KEY");
-  assert.equal(quickstartScriptName("first-value"), "runtime:demo:first-value");
   assert.equal(quickstartScriptName("sdk"), "runtime:quickstart:sdk");
   assert.equal(quickstartScriptName("http"), "runtime:quickstart:http");
   assert.equal(quickstartScriptName("multi-agent"), "runtime:quickstart:multi-agent");
   assert.equal(quickstartScriptName("none"), null);
-  assert.equal(quickstartRequiresEmbeddingKey("first-value"), false);
   assert.equal(quickstartRequiresEmbeddingKey("sdk"), true);
   assert.equal(quickstartRequiresEmbeddingKey("none"), false);
 });
@@ -241,7 +239,7 @@ test("@aionis/create does not rewrite Runtime port for remote Claude Code endpoi
   assert.doesNotMatch(env, /PORT="443"/);
 });
 
-test("@aionis/create install plan includes Runtime install, Runtime build, and selected quickstart", () => {
+test("@aionis/create install plan includes Runtime install, Runtime build, and selected verification flow", () => {
   const plan = createInstallPlan(parseCreateAionisArgs(["--quickstart", "multi-agent"]));
   assert.deepEqual(plan, [
     "clone https://github.com/ostinatocc/Aionis.git -> Aionis",
@@ -255,7 +253,7 @@ test("@aionis/create install plan includes Runtime install, Runtime build, and s
   assert.throws(() => parseCreateAionisArgs(["--quickstart", "bad"]), /Unsupported quickstart/);
 });
 
-test("@aionis/create default install plan installs without running a demo", () => {
+test("@aionis/create default install plan installs without running an optional verification flow", () => {
   const plan = createInstallPlan(parseCreateAionisArgs([]));
   assert.deepEqual(plan, [
     "clone https://github.com/ostinatocc/Aionis.git -> Aionis",
@@ -263,26 +261,23 @@ test("@aionis/create default install plan installs without running a demo", () =
     "npm run -s build",
     "skip AIFS file surface",
     "skip Zvec ANN sidecar",
-    "skip quickstart",
+    "skip verification flow",
     `skip Claude Code hooks`,
   ]);
 });
 
-test("@aionis/create routes install-time first-value output to ignored local state", () => {
+test("@aionis/create verification flow env keeps provider settings", () => {
   const targetDir = path.join(os.tmpdir(), "aionis-create-output");
   const env = quickstartRunEnv(
-    parseCreateAionisArgs(["--provider", "none", "--quickstart", "first-value"], {}),
+    parseCreateAionisArgs(["--provider", "openai", "--quickstart", "sdk"], {}),
     targetDir,
-    "",
-    null,
+    "OPENAI_API_KEY",
+    "sk-test",
     {},
   );
 
-  assert.equal(env.EMBEDDING_PROVIDER, "none");
-  assert.equal(
-    env.AIONIS_FIRST_VALUE_DEMO_OUTPUT_PATH,
-    path.join(targetDir, ".aionis", "runs", "first-value-demo-result.json"),
-  );
+  assert.equal(env.EMBEDDING_PROVIDER, "openai");
+  assert.equal(env.OPENAI_API_KEY, "sk-test");
 });
 
 test("@aionis/create install plan can include AIFS", () => {
@@ -293,7 +288,7 @@ test("@aionis/create install plan can include AIFS", () => {
     "npm run -s build",
     "print AIFS file-surface setup commands",
     "skip Zvec ANN sidecar",
-    "skip quickstart",
+    "skip verification flow",
     `skip Claude Code hooks`,
   ]);
 });
@@ -350,18 +345,18 @@ test("@aionis/create completion message blocks misleading ready state without an
   assert.match(message, /Required key for stored-memory recall: OPENAI_API_KEY/);
   assert.match(message, /Health check: curl http:\/\/127\.0\.0\.1:3001\/health/);
   assert.match(message, /HTTP: POST \/v1\/observe -> POST \/v1\/guide/);
-  assert.match(message, /Selected quickstart was not run. Set the key first, then run: npm run -s runtime:quickstart:sdk/);
+  assert.match(message, /Selected verification flow was not run. Set the key first, then run: npm run -s runtime:quickstart:sdk/);
   assert.doesNotMatch(message, /Aionis is ready/);
   assert.match(message, /AIFS package: @aionis\/aifs/);
 });
 
-test("@aionis/create completion message allows first-value without an embedding key", () => {
+test("@aionis/create completion message supports no-key install with AIFS guidance", () => {
   const message = createCompletionMessage({
     targetDir: "/tmp/Aionis",
     providerKey: "",
     apiKey: null,
     embeddingProvider: "none",
-    quickstartScript: "runtime:demo:first-value",
+    quickstartScript: null,
     withAifs: true,
     runtimeBaseUrl: "http://127.0.0.1:3101",
     quickstartRequiresEmbeddingKey: false,
@@ -373,7 +368,6 @@ test("@aionis/create completion message allows first-value without an embedding 
   assert.match(message, /AIFS file surface from an agent project/);
   assert.match(message, /npx @aionis\/aifs@latest doctor --base-url http:\/\/127\.0\.0\.1:3101 --scope my-project/);
   assert.doesNotMatch(message, /--base-url http:\/\/127\.0\.0\.1:3001/);
-  assert.doesNotMatch(message, /Run quickstart after the key is set: npm run -s runtime:demo:first-value/);
 });
 
 test("@aionis/create completion message keeps selected recall quickstart gated in no-key mode", () => {
@@ -388,7 +382,7 @@ test("@aionis/create completion message keeps selected recall quickstart gated i
 
   assert.match(message, /Aionis is installed/);
   assert.match(message, /Stored-memory semantic recall: set EMBEDDING_PROVIDER=openai\|minimax/);
-  assert.match(message, /Selected quickstart was not run. Configure semantic recall first, then run: npm run -s runtime:quickstart:sdk/);
+  assert.match(message, /Selected verification flow was not run. Configure semantic recall first, then run: npm run -s runtime:quickstart:sdk/);
 });
 
 test("@aionis/create completion message includes Zvec doctor when enabled", () => {
@@ -431,7 +425,7 @@ test("@aionis/create completion message respects skipped quickstart", () => {
   });
 
   assert.match(message, /Add your embedding key before using stored-memory recall/);
-  assert.doesNotMatch(message, /Selected quickstart was not run/);
+  assert.doesNotMatch(message, /Selected verification flow was not run/);
 });
 
 test("@aionis/create recognizes npm bin symlink as the CLI entrypoint", () => {
