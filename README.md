@@ -29,14 +29,13 @@ npx aionis setup
 That command prompts for provider and integration choices, collects optional
 API keys with hidden terminal input, then delegates the install to this package.
 
-The default run installs Aionis and starts the no-key first-value demo. It shows
-the Memory Firewall blocking failed and stale memory before you configure an
-embedding provider.
+The default run installs Aionis and prepares the Runtime for Agent integration.
+It does not run a demo by default.
 
-Run the full SDK quickstart with OpenAI-compatible embeddings:
+Install with OpenAI-compatible embeddings:
 
 ```bash
-OPENAI_API_KEY="your-key" npx @aionis/create@latest --provider openai --quickstart sdk
+OPENAI_API_KEY="your-key" npx @aionis/create@latest --provider openai
 ```
 
 Install without running any quickstart:
@@ -75,22 +74,22 @@ npx @aionis/aifs@latest refresh --base-url http://127.0.0.1:3001 --scope my-proj
 ```
 
 The installer clones the Runtime repo, installs dependencies, writes `.env`,
-runs the Runtime build check, then optionally runs a quickstart and Claude Code
-onboarding. Use `@aionis/sdk` for application integration, `@aionis/mcp` for
-MCP clients, `@aionis/aifs` for `.aionis/` workspace files, and
-`@aionis/claude-code` for Claude Code lifecycle integration.
+runs the Runtime build check, then optionally runs Claude Code onboarding. Use
+`@aionis/sdk` for application integration, `@aionis/mcp` for MCP clients,
+`@aionis/aifs` for `.aionis/` workspace files, and `@aionis/claude-code` for
+Claude Code lifecycle integration.
 
-If no embedding key is detected, the installer writes `EMBEDDING_PROVIDER=none`
-so the local Runtime can start immediately. That no-key mode is enough for the
-first-value demo, MCP wiring, execution-memory smoke tests, and Memory Firewall
-candidate governance. Configure semantic recall later by setting
+If no embedding key is detected, the installer can write `EMBEDDING_PROVIDER=none`
+so the local Runtime can start immediately. That no-key mode is useful for
+connectivity and governance checks, but stored-memory semantic recall needs a
+provider key. Configure semantic recall by setting
 `EMBEDDING_PROVIDER=openai` plus `OPENAI_API_KEY`, or
 `EMBEDDING_PROVIDER=minimax` plus `MINIMAX_API_KEY`, in the generated `.env`.
 
 Common first runs:
 
 ```bash
-OPENAI_API_KEY="your-key" npx @aionis/create@latest --provider openai --quickstart multi-agent
+OPENAI_API_KEY="your-key" npx @aionis/create@latest --provider openai
 ```
 
 After install, pick the integration path:

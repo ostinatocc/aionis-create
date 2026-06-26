@@ -44,7 +44,7 @@ Options:
   --branch <name>           Git branch or tag to clone.
   --provider <name>         Embedding provider. Defaults to EMBEDDING_PROVIDER, a detected key, or none.
   --api-key <key>           Provider API key. Prefer env vars for shell history safety.
-  --quickstart <name>       first-value, sdk, http, multi-agent, or none. Defaults to first-value.
+  --quickstart <name>       Advanced: first-value, sdk, http, multi-agent, or none. Defaults to none.
   --with-aifs               Print @aionis/aifs file-surface setup commands.
   --with-zvec-ann           Enable optional Zvec ANN candidate sidecar in Runtime .env.
   --zvec-path <path>        Optional Zvec index path. Defaults to Runtime's SQLite-derived path.
@@ -63,7 +63,7 @@ Options:
 
 Examples:
   npx @aionis/create
-  OPENAI_API_KEY=... npx @aionis/create my-aionis --provider openai --quickstart sdk
+  OPENAI_API_KEY=... npx @aionis/create my-aionis --provider openai
   npx @aionis/create .aionis-runtime --with-claude-code --claude-code-dir .
 `;
 }
@@ -122,7 +122,7 @@ export function parseCreateAionisArgs(argv: string[], env: NodeJS.ProcessEnv = p
   let branch: string | null = null;
   let provider = defaultEmbeddingProvider(env);
   let apiKey: string | null = null;
-  let quickstart: AionisQuickstart = "first-value";
+  let quickstart: AionisQuickstart = "none";
   let skipInstall = false;
   let skipQuickstart = false;
   let withAifs = false;
@@ -452,27 +452,36 @@ export function createCompletionMessage(input: {
       `  npx @aionis/aifs@latest refresh --base-url ${runtimeBaseUrl} --scope my-project`,
     ]
     : ["AIFS package: @aionis/aifs"];
+  const runtimeLines = [
+    `Runtime directory: ${input.targetDir}`,
+    `Start Runtime: cd ${input.targetDir} && npm run -s lite:start`,
+    `Health check: curl ${runtimeBaseUrl}/health`,
+    "Agent integration:",
+    `  SDK / HTTP base URL: ${runtimeBaseUrl}`,
+    `  SDK: createAionisClient({ baseUrl: "${runtimeBaseUrl}" })`,
+    "  HTTP: POST /v1/observe -> POST /v1/guide -> POST /v1/feedback -> POST /v1/measure",
+    `  MCP: npx @aionis/mcp@latest --base-url ${runtimeBaseUrl} --scope-from workspace`,
+    `  AIFS: npx @aionis/aifs@latest refresh --base-url ${runtimeBaseUrl} --scope my-project`,
+  ];
   if (!input.apiKey) {
     const quickstartNeedsKey = input.quickstartRequiresEmbeddingKey ?? true;
     const noKeyRuntimeReady = input.embeddingProvider === "none";
     const lines = [
       "",
       noKeyRuntimeReady
-        ? "Aionis is installed. Runtime can start now in no-key mode; semantic recall can be enabled later with an embedding key."
+        ? "Aionis is installed."
         : quickstartNeedsKey
-        ? "Aionis is installed. Set your embedding key before starting Runtime."
-        : "Aionis is installed. The first-value demo can run without an embedding key.",
-      `Runtime directory: ${input.targetDir}`,
+        ? "Aionis is installed. Add your embedding key before using stored-memory recall."
+        : "Aionis is installed.",
+      ...runtimeLines,
       noKeyRuntimeReady
-        ? `Start Runtime: cd ${input.targetDir} && npm run -s lite:start`
-        : `Required key: ${input.providerKey}`,
+        ? "Stored-memory semantic recall: set EMBEDDING_PROVIDER=openai|minimax plus the matching API key in .env."
+        : `Required key for stored-memory recall: ${input.providerKey}`,
       noKeyRuntimeReady
-        ? "Enable semantic recall later by setting EMBEDDING_PROVIDER=openai or minimax plus the matching API key in .env."
+        ? `Config file: ${path.join(input.targetDir, ".env")}`
         : `Set it in: ${path.join(input.targetDir, ".env")}`,
       ...(noKeyRuntimeReady ? [] : [
         `Example: ${input.providerKey}="your-key"`,
-        `Start Runtime after the key is set: cd ${input.targetDir} && npm run -s lite:start`,
-        "Run the SDK quickstart after the key is set: npm run -s runtime:quickstart:sdk",
       ]),
       "SDK package: @aionis/sdk",
       "MCP package: @aionis/mcp",
@@ -483,8 +492,8 @@ export function createCompletionMessage(input: {
     if (input.quickstartScript && quickstartNeedsKey) {
       lines.push(
         noKeyRuntimeReady
-          ? `Run selected quickstart after semantic recall is configured: npm run -s ${input.quickstartScript}`
-          : `Run quickstart after the key is set: npm run -s ${input.quickstartScript}`,
+          ? `Selected quickstart was not run. Configure semantic recall first, then run: npm run -s ${input.quickstartScript}`
+          : `Selected quickstart was not run. Set the key first, then run: npm run -s ${input.quickstartScript}`,
       );
     }
     return `${lines.join(os.EOL)}${os.EOL}`;
@@ -493,8 +502,7 @@ export function createCompletionMessage(input: {
   return `${[
     "",
     "Aionis is ready.",
-    `Runtime directory: ${input.targetDir}`,
-    `Start Runtime: cd ${input.targetDir} && npm run -s lite:start`,
+    ...runtimeLines,
     "SDK package: @aionis/sdk",
     "MCP package: @aionis/mcp",
     "Claude Code hooks package: @aionis/claude-code",

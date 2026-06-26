@@ -23,7 +23,7 @@ test("@aionis/create parses defaults for the one-command installer", () => {
   assert.equal(options.dir, "Aionis");
   assert.equal(options.repo, "https://github.com/ostinatocc/Aionis.git");
   assert.equal(options.provider, "none");
-  assert.equal(options.quickstart, "first-value");
+  assert.equal(options.quickstart, "none");
   assert.equal(options.skipInstall, false);
   assert.equal(options.skipQuickstart, false);
   assert.equal(options.withAifs, false);
@@ -255,7 +255,7 @@ test("@aionis/create install plan includes Runtime install, Runtime build, and s
   assert.throws(() => parseCreateAionisArgs(["--quickstart", "bad"]), /Unsupported quickstart/);
 });
 
-test("@aionis/create default install plan runs the no-key first-value demo", () => {
+test("@aionis/create default install plan installs without running a demo", () => {
   const plan = createInstallPlan(parseCreateAionisArgs([]));
   assert.deepEqual(plan, [
     "clone https://github.com/ostinatocc/Aionis.git -> Aionis",
@@ -263,7 +263,7 @@ test("@aionis/create default install plan runs the no-key first-value demo", () 
     "npm run -s build",
     "skip AIFS file surface",
     "skip Zvec ANN sidecar",
-    "npm run -s runtime:demo:first-value",
+    "skip quickstart",
     `skip Claude Code hooks`,
   ]);
 });
@@ -271,7 +271,7 @@ test("@aionis/create default install plan runs the no-key first-value demo", () 
 test("@aionis/create routes install-time first-value output to ignored local state", () => {
   const targetDir = path.join(os.tmpdir(), "aionis-create-output");
   const env = quickstartRunEnv(
-    parseCreateAionisArgs(["--provider", "none"], {}),
+    parseCreateAionisArgs(["--provider", "none", "--quickstart", "first-value"], {}),
     targetDir,
     "",
     null,
@@ -346,10 +346,11 @@ test("@aionis/create completion message blocks misleading ready state without an
   });
 
   assert.match(message, /Aionis is installed/);
-  assert.match(message, /Set your embedding key before starting Runtime/);
-  assert.match(message, /Required key: OPENAI_API_KEY/);
-  assert.match(message, /Start Runtime after the key is set/);
-  assert.match(message, /Run quickstart after the key is set: npm run -s runtime:quickstart:sdk/);
+  assert.match(message, /Add your embedding key before using stored-memory recall/);
+  assert.match(message, /Required key for stored-memory recall: OPENAI_API_KEY/);
+  assert.match(message, /Health check: curl http:\/\/127\.0\.0\.1:3001\/health/);
+  assert.match(message, /HTTP: POST \/v1\/observe -> POST \/v1\/guide/);
+  assert.match(message, /Selected quickstart was not run. Set the key first, then run: npm run -s runtime:quickstart:sdk/);
   assert.doesNotMatch(message, /Aionis is ready/);
   assert.match(message, /AIFS package: @aionis\/aifs/);
 });
@@ -366,9 +367,9 @@ test("@aionis/create completion message allows first-value without an embedding 
     quickstartRequiresEmbeddingKey: false,
   });
 
-  assert.match(message, /Runtime can start now in no-key mode/);
+  assert.match(message, /Aionis is installed/);
   assert.match(message, /Start Runtime: cd \/tmp\/Aionis && npm run -s lite:start/);
-  assert.match(message, /Enable semantic recall later/);
+  assert.match(message, /Stored-memory semantic recall: set EMBEDDING_PROVIDER=openai\|minimax/);
   assert.match(message, /AIFS file surface from an agent project/);
   assert.match(message, /npx @aionis\/aifs@latest doctor --base-url http:\/\/127\.0\.0\.1:3101 --scope my-project/);
   assert.doesNotMatch(message, /--base-url http:\/\/127\.0\.0\.1:3001/);
@@ -385,8 +386,9 @@ test("@aionis/create completion message keeps selected recall quickstart gated i
     quickstartRequiresEmbeddingKey: true,
   });
 
-  assert.match(message, /Runtime can start now in no-key mode/);
-  assert.match(message, /Run selected quickstart after semantic recall is configured: npm run -s runtime:quickstart:sdk/);
+  assert.match(message, /Aionis is installed/);
+  assert.match(message, /Stored-memory semantic recall: set EMBEDDING_PROVIDER=openai\|minimax/);
+  assert.match(message, /Selected quickstart was not run. Configure semantic recall first, then run: npm run -s runtime:quickstart:sdk/);
 });
 
 test("@aionis/create completion message includes Zvec doctor when enabled", () => {
@@ -428,8 +430,8 @@ test("@aionis/create completion message respects skipped quickstart", () => {
     quickstartScript: null,
   });
 
-  assert.match(message, /Start Runtime after the key is set/);
-  assert.doesNotMatch(message, /Run quickstart after the key is set/);
+  assert.match(message, /Add your embedding key before using stored-memory recall/);
+  assert.doesNotMatch(message, /Selected quickstart was not run/);
 });
 
 test("@aionis/create recognizes npm bin symlink as the CLI entrypoint", () => {
