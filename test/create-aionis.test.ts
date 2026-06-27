@@ -40,13 +40,17 @@ test("@aionis/create parses defaults for the one-command installer", () => {
 test("@aionis/create selects embedding provider from explicit env or available keys", () => {
   assert.equal(defaultEmbeddingProvider({}), "none");
   assert.equal(defaultEmbeddingProvider({ EMBEDDING_PROVIDER: "minimax" }), "minimax");
+  assert.equal(defaultEmbeddingProvider({ EMBEDDING_PROVIDER: "dashscope" }), "dashscope");
   assert.equal(defaultEmbeddingProvider({ OPENAI_API_KEY: "sk-test" }), "openai");
+  assert.equal(defaultEmbeddingProvider({ DASHSCOPE_API_KEY: "sk-test" }), "dashscope");
   assert.equal(defaultEmbeddingProvider({ MINIMAX_API_KEY: "sk-test" }), "minimax");
   assert.equal(defaultEmbeddingProvider({
     OPENAI_API_KEY: "sk-openai",
+    DASHSCOPE_API_KEY: "sk-dashscope",
     MINIMAX_API_KEY: "sk-minimax",
   }), "openai");
   assert.equal(parseCreateAionisArgs(["--provider", "openai"], {}).provider, "openai");
+  assert.equal(parseCreateAionisArgs(["--provider", "dashscope"], {}).provider, "dashscope");
 });
 
 test("@aionis/create parses explicit Runtime, SDK, and quickstart options", () => {
@@ -107,6 +111,7 @@ test("@aionis/create parses Claude Code lifecycle integration options", () => {
 test("@aionis/create exposes stable provider and quickstart mappings", () => {
   assert.equal(providerEnvKey("minimax"), "MINIMAX_API_KEY");
   assert.equal(providerEnvKey("openai"), "OPENAI_API_KEY");
+  assert.equal(providerEnvKey("dashscope"), "DASHSCOPE_API_KEY");
   assert.equal(providerEnvKey("none"), "");
   assert.equal(providerEnvKey("custom provider"), "CUSTOM_PROVIDER_API_KEY");
   assert.equal(quickstartScriptName("sdk"), "runtime:quickstart:sdk");
@@ -178,6 +183,25 @@ test("@aionis/create writes MiniMax env when explicitly selected with a key", ()
   assert.equal(result.apiKey, "sk-minimax");
   assert.match(env, /EMBEDDING_PROVIDER="minimax"/);
   assert.match(env, /MINIMAX_API_KEY="sk-minimax"/);
+});
+
+test("@aionis/create writes DashScope env when explicitly selected with a key", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aionis-create-env-dashscope-"));
+  fs.writeFileSync(path.join(dir, ".env.example"), "EMBEDDING_PROVIDER=none\n");
+
+  const result = writeRuntimeEnv(dir, parseCreateAionisArgs([
+    "--provider",
+    "dashscope",
+    "--api-key",
+    "sk-dashscope",
+  ], {}));
+  const env = fs.readFileSync(path.join(dir, ".env"), "utf8");
+
+  assert.equal(result.embeddingProvider, "dashscope");
+  assert.equal(result.providerKey, "DASHSCOPE_API_KEY");
+  assert.equal(result.apiKey, "sk-dashscope");
+  assert.match(env, /EMBEDDING_PROVIDER="dashscope"/);
+  assert.match(env, /DASHSCOPE_API_KEY="sk-dashscope"/);
 });
 
 test("@aionis/create writes optional Zvec ANN env when requested", () => {
@@ -364,7 +388,7 @@ test("@aionis/create completion message supports no-key install with AIFS guidan
 
   assert.match(message, /Aionis is installed/);
   assert.match(message, /Start Runtime: cd \/tmp\/Aionis && npm run -s lite:start/);
-  assert.match(message, /Stored-memory semantic recall: set EMBEDDING_PROVIDER=openai\|minimax/);
+  assert.match(message, /Stored-memory semantic recall: set EMBEDDING_PROVIDER=openai\|dashscope\|minimax/);
   assert.match(message, /AIFS file surface from an agent project/);
   assert.match(message, /npx @aionis\/aifs@latest doctor --base-url http:\/\/127\.0\.0\.1:3101 --scope my-project/);
   assert.doesNotMatch(message, /--base-url http:\/\/127\.0\.0\.1:3001/);
@@ -381,7 +405,7 @@ test("@aionis/create completion message keeps selected recall quickstart gated i
   });
 
   assert.match(message, /Aionis is installed/);
-  assert.match(message, /Stored-memory semantic recall: set EMBEDDING_PROVIDER=openai\|minimax/);
+  assert.match(message, /Stored-memory semantic recall: set EMBEDDING_PROVIDER=openai\|dashscope\|minimax/);
   assert.match(message, /Selected verification flow was not run. Configure semantic recall first, then run: npm run -s runtime:quickstart:sdk/);
 });
 

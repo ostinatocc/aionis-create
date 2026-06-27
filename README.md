@@ -38,6 +38,12 @@ Install with OpenAI-compatible embeddings:
 OPENAI_API_KEY="your-key" npx @aionis/create@latest --provider openai
 ```
 
+Install with DashScope text-embedding-v4:
+
+```bash
+DASHSCOPE_API_KEY="your-key" npx @aionis/create@latest --provider dashscope
+```
+
 Install Runtime only:
 
 ```bash
@@ -84,12 +90,14 @@ so the local Runtime can start immediately. That no-key mode is useful for
 connectivity and governance checks, but stored-memory semantic recall needs a
 provider key. Configure semantic recall by setting
 `EMBEDDING_PROVIDER=openai` plus `OPENAI_API_KEY`, or
+`EMBEDDING_PROVIDER=dashscope` plus `DASHSCOPE_API_KEY`, or
 `EMBEDDING_PROVIDER=minimax` plus `MINIMAX_API_KEY`, in the generated `.env`.
 
 Common first runs:
 
 ```bash
 OPENAI_API_KEY="your-key" npx @aionis/create@latest --provider openai
+DASHSCOPE_API_KEY="your-key" npx @aionis/create@latest --provider dashscope
 ```
 
 After install, pick the integration path:

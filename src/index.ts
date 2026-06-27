@@ -64,6 +64,7 @@ Options:
 Common commands:
   npx @aionis/create
   OPENAI_API_KEY=... npx @aionis/create my-aionis --provider openai
+  DASHSCOPE_API_KEY=... npx @aionis/create my-aionis --provider dashscope
   npx @aionis/create .aionis-runtime --with-claude-code --claude-code-dir .
 `;
 }
@@ -78,6 +79,7 @@ export function providerEnvKey(provider: string): string {
   const normalized = provider.trim().toLowerCase();
   if (normalized === "none") return "";
   if (normalized === "openai") return "OPENAI_API_KEY";
+  if (normalized === "dashscope") return "DASHSCOPE_API_KEY";
   if (normalized === "minimax") return "MINIMAX_API_KEY";
   return `${normalized.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}_API_KEY`;
 }
@@ -86,6 +88,7 @@ export function defaultEmbeddingProvider(env: NodeJS.ProcessEnv = process.env): 
   const explicit = env.EMBEDDING_PROVIDER?.trim();
   if (explicit) return explicit;
   if (env.OPENAI_API_KEY?.trim()) return "openai";
+  if (env.DASHSCOPE_API_KEY?.trim()) return "dashscope";
   if (env.MINIMAX_API_KEY?.trim()) return "minimax";
   return "none";
 }
@@ -465,7 +468,7 @@ export function createCompletionMessage(input: {
         : "Aionis is installed.",
       ...runtimeLines,
       noKeyRuntimeReady
-        ? "Stored-memory semantic recall: set EMBEDDING_PROVIDER=openai|minimax plus the matching API key in .env."
+        ? "Stored-memory semantic recall: set EMBEDDING_PROVIDER=openai|dashscope|minimax plus the matching API key in .env."
         : `Required key for stored-memory recall: ${input.providerKey}`,
       noKeyRuntimeReady
         ? `Config file: ${path.join(input.targetDir, ".env")}`
